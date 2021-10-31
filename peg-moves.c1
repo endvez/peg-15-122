@@ -1,0 +1,213 @@
+/**************************************************************************/
+/*              COPYRIGHT Carnegie Mellon University 2021                 */
+/* Do not post this file or any derivative on a public site or repository */
+/**************************************************************************/
+/*
+ * Peg solitaire solver
+ *
+ * 15-122 Principles of Imperative Computation */
+
+#use <conio>
+#use <util>
+
+typedef struct move_header move_struct;
+struct move_header {
+  int row_s;
+  int col_s;
+  int row_e;
+  int col_e;
+};  // Change me!
+
+typedef move_struct* move;
+
+bool is_move(move m) {
+  return m!=NULL 
+  && 0 <= m->row_s && m->row_s < 8
+  && 0 <= m->col_s && m->col_s < 8
+  && 0 <= m->row_e && m->row_e < 8
+  && 0 <= m->col_s && m->col_s < 8
+  && ((m->row_e == m->row_s + 2 
+  && m->col_e == m->col_s)
+    || (m->row_e == m->row_s - 2 
+  && m->col_e == m->col_s)
+    || (m->col_e == m->col_s + 2 
+    && m->row_e == m->row_s) 
+    || (m->col_e == m->col_s - 2)
+    && (m->row_e == m->row_s));
+}
+
+int start_index(move m)
+//@requires is_move(m);
+//@ensures is_move(m);
+{
+  return m->row_s*8 + m->col_s;
+}
+
+int mid_index(move m)
+//@requires is_move(m);
+//@ensures is_move(m);
+{
+  int avg_row = (m->row_s + m->row_e) / 2;
+  int avg_col = (m->col_s + m->col_e) / 2;
+  return avg_row*8 + avg_col;
+}
+int end_index(move m)
+//@requires is_move(m);
+//@ensures is_move(m);
+{
+  return m->row_e*8 + m->col_e;
+}
+
+int index_from_row_col(int row, int col)
+{
+  return row*8 + col;
+}
+int index_to_row(int index) 
+{
+  return index / 8;
+}
+
+int index_to_col(int index)
+{
+  return index % 8;
+}
+
+
+
+move new_move(int from_row, int from_col, int to_row, int to_col) 
+//@requires 0<= from_row && from_row < 8;
+//@requires 0<= from_col && from_col < 8;
+//@requires 0<= to_row && to_row < 8;
+//@requires 0<= to_col && to_col < 8;
+/*@requires ((to_row == from_row + 2 
+  && to_col == from_col)
+    || (to_row == from_row - 2 
+  && to_col == from_col)
+    || (to_col == from_col + 2 
+    && to_row == from_row) 
+    || (to_col == from_col - 2)
+    && (to_row == from_row)); @*/
+//@ensures is_move(\result);
+{
+  move m = alloc(move_struct);
+  m->row_s = from_row;
+  m->col_s = from_col;
+  m->row_e = to_row;
+  m->col_e = to_col;
+  return m;
+}
+  
+
+int row_start(move m) 
+//@requires is_move(m);
+//@ensures is_move(m);
+//@ensures \result == m->row_s;
+{
+  return m->row_s;
+}
+
+int col_start(move m) 
+//@requires is_move(m);
+//@ensures is_move(m);
+//@ensures \result == m->col_s;
+{
+  return m->col_s;
+}
+
+int row_end(move m) 
+//@requires is_move(m);
+//@ensures is_move(m);
+//@ensures \result == m->row_e;
+{
+  return m->row_e;
+}
+  
+
+int col_end(move m) 
+//@requires is_move(m);
+//@ensures is_move(m);
+//@ensures \result == m->col_e;
+{
+  return m->col_e;
+}
+  
+
+void make_move(board B, move m)
+//@requires is_move(m);
+//@requires B[start_index(m)] == 1;
+//@requires B[mid_index(m)] == 1;
+//@requires B[end_index(m)] == 0;
+//@ensures is_move(m);
+//@ensures B[start_index(m)] == 0;
+//@ensures B[mid_index(m)] == 0;
+//@ensures B[end_index(m)] == 1;
+{
+  B[start_index(m)] = 0;
+  B[mid_index(m)] = 0;
+  B[end_index(m)] = 1;
+}
+  
+
+void undo_move(board B, move m)
+//@requires is_move(m);
+//@requires B[start_index(m)] == 0;
+//@requires B[end_index(m)] == 1;
+//@ensures is_move(m);
+//@ensures B[start_index(m)] == 1;
+//@ensures B[mid_index(m)] == 1;
+//@ensures B[end_index(m)] == 0;
+{
+  B[end_index(m)] = 0;
+  B[mid_index(m)] = 1;
+  B[start_index(m)] = 1;
+}
+
+stack_t all_moves(board B)
+{
+  stack_t moves = stack_new();
+  for (int i = 0; i < 64; i++) {
+    int row = index_to_row(i);
+    int col = index_to_col(i);
+    if (B[i] == 1) {
+      if (col+2 < 8) { 
+        if (B[index_from_row_col(row,col+2)] == 0 
+        && B[index_from_row_col(row,col+1)] == 1) {
+          move valid_move = new_move(row,col,row,col+2);
+          void* void_move = (void*)valid_move;
+          //@assert \hastag(move, void_move);
+          push(moves, void_move);
+        }     
+      }
+      if (col-2 >= 0) { 
+        if (B[index_from_row_col(row,col-2)] == 0 
+        && B[index_from_row_col(row,col-1)] == 1) {
+          move valid_move = new_move(row,col,row,col-2);
+          void* void_move = (void*)valid_move;
+          //@assert \hastag(move, void_move);
+          push(moves, void_move);
+        }     
+      }
+      if (row-2 >= 0) { 
+        if (B[index_from_row_col(row-2,col)] == 0 
+        && B[index_from_row_col(row-1,col)] == 1) {
+          move valid_move = new_move(row,col,row-2,col);
+          void* void_move = (void*)valid_move;
+          //@assert \hastag(move, void_move);
+          push(moves, void_move);
+        }     
+      }
+      if (row+2 < 8) { 
+        if (B[index_from_row_col(row+2,col)] == 0 
+        && B[index_from_row_col(row+1,col)] == 1) {
+          move valid_move = new_move(row,col,row+2,col);
+          void* void_move = (void*)valid_move;
+          //@assert \hastag(move, void_move);
+          push(moves, void_move);
+        }
+      } 
+    }
+  }
+  return moves;
+
+}
+  

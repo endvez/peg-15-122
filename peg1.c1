@@ -1,0 +1,70 @@
+/**************************************************************************/
+/*              COPYRIGHT Carnegie Mellon University 2021                 */
+/* Do not post this file or any derivative on a public site or repository */
+/**************************************************************************/
+/*
+ * Peg solitaire solver
+ *
+ * 15-122 Principles of Imperative Computation */
+
+#use <conio>
+#use <util>
+
+int countpegs(board B) {
+  int counter = 0;
+  for (int i = 0; i < 64; i++) {
+    if (B[i] == 1) counter++;
+  }
+  return counter;
+} 
+
+
+
+void print_move(stackelem m) {
+  move m1 = (move) m;
+  printint(m1->row_s);
+  printint(m1->col_s);
+  printint(m1->row_e);
+  printint(m1->col_e);
+}
+int solve(board B, stack_t Sol) {
+  stack_t temp = all_moves(B);
+  stack_t temp_2 = stack_new();
+  int min;
+  int temp_min = countpegs(B);
+  if (temp_min == 1) return 1;
+  min = temp_min;
+  while(!stack_empty(temp)){
+    void* m_void = pop(temp);
+    //@assert \hastag(move, m_void);
+    move m = (move)m_void;
+
+    push(temp_2, m_void);
+    make_move(B,m);
+    temp_min = countpegs(B);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    
+    if (min > temp_min) min = temp_min;
+    temp_min = solve(B, Sol);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    
+    if (min > temp_min) min = temp_min;
+    undo_move(B,m); 
+    pop(temp_2); 
+  } 
+
+  //@assert(!stack_empty(Sol)); 
+  return min; 
+
+
+} 

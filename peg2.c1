@@ -1,0 +1,221 @@
+/**************************************************************************/
+/*              COPYRIGHT Carnegie Mellon University 2021                 */
+/* Do not post this file or any derivative on a public site or repository */
+/**************************************************************************/
+/*
+ * Peg solitaire solver
+ *
+ * 15-122 Principles of Imperative Computation */
+
+#use <conio>
+#use <util>
+#use <rand>
+#use <string>
+
+struct compact_board {
+  int i1;         // First  half of a compacted board
+  int i2;   
+  string s;      // second half of a compacted board
+  // Add any field you deem useful
+};
+typedef struct compact_board cboard;
+
+cboard* compress (board B)
+{
+  cboard* c = alloc(struct compact_board);
+  int counter = 1;
+  int sum1 = 0;
+  int sum2 = 0;
+  string b = "";
+  for (int i = 0; i < 32; i++) {
+    string temp = string_fromint(B[i]);
+    if (string_equal(temp,"-1")) temp = "2";
+    b = string_join(b, temp);
+    sum1 = sum1 + B[i]*counter;
+    counter++;
+  }
+  c->i1 = sum1;
+  for (int i = 32; i < 64; i++) {
+    string temp = string_fromint(B[i]);
+    if (string_equal(temp,"-1")) temp = "2";
+    b = string_join(b, temp);
+    sum2 = sum2 + B[i]*counter;
+    counter++;
+  }
+  c->i2 = sum2;
+  c->s = b;
+  return c;
+}
+
+
+/* Client side implementation for hashtables.  See lib/hdict.c1 */
+
+//hash function from lab
+int cboard_hash(key k)
+//@requires k != NULL;
+{
+  string* temp = alloc(string);
+  *temp = *(string*)k;
+  int res = char_ord(string_charat(*temp, 0)); 
+	for (int i = 1; i < 64; i++) {
+		res = (res * 1664525) + char_ord(string_charat(*temp,i)) + 1013904223;
+	}
+  return res; // Change me!
+}
+
+
+bool cboard_eq(key k1, key k2)
+//@requires k1 != NULL && k2 != NULL;
+{
+  return string_equal(*(string*)k1,*(string*)k2);  // Change me!
+}
+
+key cboard_key(entry e)
+//@requires e != NULL;
+//@ensures \result != NULL;
+{
+  cboard* e_cboard = (cboard*)e;
+  string* k = alloc(string);
+  *k = e_cboard->s;
+  return (void*)k;// Change me!
+}
+
+/* OPTIONAL:
+   If you would like to use pegmark, implement the following function
+   that takes a cboard and returns the corresponding hash table entry.
+   See file performance_debugging.txt for details.
+ */
+entry cboard_to_entry(cboard* c)
+// some contracts may be useful
+{
+  assert(false);  // Delete me
+  return NULL;    // Change me!
+}
+
+
+
+/*
+ * Copy here your code from peg1.c1 to continue
+ */
+int countpegs(board B) {
+  int counter = 0;
+  for (int i = 0; i < 64; i++) {
+    if (B[i] == 1) counter++;
+  }
+  return counter;
+} 
+
+
+
+void print_move(stackelem m) {
+  move m1 = (move) m;
+  printint(m1->row_s);
+  printint(m1->col_s);
+  printint(m1->row_e);
+  printint(m1->col_e);
+}
+
+int solve_helper(board B, stack_t Sol, hdict* H) {
+  stack_t temp = all_moves(B);
+  stack_t temp_2 = stack_new();
+  int min;
+  cboard* c = alloc(struct compact_board);
+  int temp_min = countpegs(B);
+  if (temp_min == 1) return 1;
+  min = temp_min;
+  while(!stack_empty(temp)){
+    void* m_void = pop(temp);
+    //@assert \hastag(move, m_void);
+    move m = (move)m_void;
+    
+    push(temp_2, m_void);
+    make_move(B,m);
+    c = compress(B);
+    if(hdict_lookup(H,cboard_key((void*)c)) != NULL) {
+      undo_move(B,m); 
+      pop(temp_2); 
+      return min;
+    }
+    temp_min = countpegs(B);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    
+    if (min > temp_min) min = temp_min;
+    temp_min = solve_helper(B, Sol, H);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    c = compress(B);
+    if(hdict_lookup(H,cboard_key((void*)c)) == NULL) {
+      hdict_insert(H,(void*)c);
+    }
+    if (min > temp_min) min = temp_min;
+    undo_move(B,m); 
+    pop(temp_2); 
+  } 
+
+  //@assert(!stack_empty(Sol)); 
+  return min; 
+
+
+} 
+
+int solve(board B, stack_t Sol) {
+  hdict* H = hdict_new(32,&cboard_key,&cboard_hash,&cboard_eq);
+  stack_t temp = all_moves(B);
+  stack_t temp_2 = stack_new();
+  int min;
+  cboard* c = alloc(struct compact_board);
+  int temp_min = countpegs(B);
+  if (temp_min == 1) return 1;
+  min = temp_min;
+  while(!stack_empty(temp)){
+    void* m_void = pop(temp);
+    //@assert \hastag(move, m_void);
+    move m = (move)m_void;
+    
+    push(temp_2, m_void);
+    make_move(B,m);
+    c = compress(B);
+    if(hdict_lookup(H,cboard_key((void*)c)) != NULL) {
+      undo_move(B,m); 
+      pop(temp_2); 
+      return min;
+    }
+    temp_min = countpegs(B);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    
+    if (min > temp_min) min = temp_min;
+    temp_min = solve_helper(B, Sol,H);
+    if (temp_min == 1) {
+      while(!stack_empty(temp_2)) {
+        push(Sol,pop(temp_2));
+      } 
+      return 1;
+    }
+    c = compress(B);
+    if(hdict_lookup(H,cboard_key((void*)c)) == NULL) {
+      hdict_insert(H,(void*)c);
+    }
+    if (min > temp_min) min = temp_min;
+    undo_move(B,m); 
+    pop(temp_2); 
+  } 
+
+  //@assert(!stack_empty(Sol)); 
+  return min; 
+
+
+} 
